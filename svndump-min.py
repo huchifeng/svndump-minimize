@@ -39,6 +39,9 @@ EXAMPLE:
 但仍然不能解决目录复制和删除的计算量问题;
 
 TODO: 需要设计一个虚拟的 svn 仓库对象, 才能实现 0 成本目录复制删除;
+最终必须有一个产生白名单的过程, 复杂度至少和最终状态文件数成正比, 
+能提高的地方在于复制和删除子树时,不必遍历全部节点(可以遍历子树节点);
+使用树结构tree代替平铺的map即可实现.
 
 TODO: 过滤过程会产生一些空提交, 考虑删除;
 
@@ -111,59 +114,59 @@ def parent_path(j):
 def is_in_dir(i, dir):
     return i[0:len(dir)+1]==dir+'/'
 
-class write_dumpfile():
-    def __init__(self, filename):
-        self.f = io.open(filename, 'wb');
-        self.depends = collections.defaultdict(lambda:{});
-    def write_test_filter(self, header, header_str, prop, bytes):
-        # 简单的 filter, 正确;
-        if('Node-path' in header and header['Node-path']=='1/tmp1.bmp'):
-            return;
-        dump(self.f, header, header_str, prop, bytes);
-    def minimize_record(self, header, header_str, prop, bytes):        
-        if('Node-action' in header and header['Node-action']=='delete'):
-            path = header['Node-path'];
-            assert path in self.depends;
-            del self.depends[path];
-            for i in self.depends.copy():
-                if(is_in_dir(i, path)):
-                    del self.depends[i];
-            return;
-        if('Node-path' in header):
-            path = header['Node-path'];
-            self.depends[path][path] = 1;
-            if('Node-copyfrom-path' in header):
-                path_from = header['Node-copyfrom-path'];
-                self.depends[path][path_from]=1;
-                assert path_from in self.depends;
-                for i in self.depends[path_from]:
-                    self.depends[path][i]=1;
-                if(header['Node-kind']=='dir'):
-                    for i in self.depends.copy():
-                        if(is_in_dir(i, path_from)):
-                            for j in self.depends[i]:
-                                self.depends[path+i[len(path_from):]][j] = 1;
-    def minimize_calc_filter(self):
-        self.keep = {};
-        for i in self.depends:
-            for j in self.depends[i]:
-                # 保留文件的父目录也需要保留
-                for k in parent_path(j):
-                    self.keep[k] = 1;
-        for i in self.keep:
-            print "keep", i;
-        self.status = collections.defaultdict(lambda:"");
-    def minimize_write(self, header, header_str, prop, bytes):
-        if('Node-path' in header and not(header['Node-path'] in self.keep)):
-            if(self.status[header['Node-path']]=='' and header['Node-action']=='delete'):
-                # 随目录copy而产生, 没有单独的 Node-action: add
-                #  不应过滤
-                dump(self.f, header, header_str, prop, bytes);
-                return;
-            self.status[header['Node-path']] = header['Node-action'];
-            print "ignore", header['Node-path'];
-            return;
-        dump(self.f, header, header_str, prop, bytes);
+#class write_dumpfile():
+#    def __init__(self, filename):
+#        self.f = io.open(filename, 'wb');
+#        self.depends = collections.defaultdict(lambda:{});
+#    def write_test_filter(self, header, header_str, prop, bytes):
+#        # 简单的 filter, 正确;
+#        if('Node-path' in header and header['Node-path']=='1/tmp1.bmp'):
+#            return;
+#        dump(self.f, header, header_str, prop, bytes);
+#    def minimize_record(self, header, header_str, prop, bytes):        
+#        if('Node-action' in header and header['Node-action']=='delete'):
+#            path = header['Node-path'];
+#            assert path in self.depends;
+#            del self.depends[path];
+#            for i in self.depends.copy():
+#                if(is_in_dir(i, path)):
+#                    del self.depends[i];
+#            return;
+#        if('Node-path' in header):
+#            path = header['Node-path'];
+#            self.depends[path][path] = 1;
+#            if('Node-copyfrom-path' in header):
+#                path_from = header['Node-copyfrom-path'];
+#                self.depends[path][path_from]=1;
+#                assert path_from in self.depends;
+#                for i in self.depends[path_from]:
+#                    self.depends[path][i]=1;
+#                if(header['Node-kind']=='dir'):
+#                    for i in self.depends.copy():
+#                        if(is_in_dir(i, path_from)):
+#                            for j in self.depends[i]:
+#                                self.depends[path+i[len(path_from):]][j] = 1;
+#    def minimize_calc_filter(self):
+#        self.keep = {};
+#        for i in self.depends:
+#            for j in self.depends[i]:
+#                # 保留文件的父目录也需要保留
+#                for k in parent_path(j):
+#                    self.keep[k] = 1;
+#        for i in self.keep:
+#            print "keep", i;
+#        self.status = collections.defaultdict(lambda:"");
+#    def minimize_write(self, header, header_str, prop, bytes):
+#        if('Node-path' in header and not(header['Node-path'] in self.keep)):
+#            if(self.status[header['Node-path']]=='' and header['Node-action']=='delete'):
+#                # 随目录copy而产生, 没有单独的 Node-action: add
+#                #  不应过滤
+#                dump(self.f, header, header_str, prop, bytes);
+#                return;
+#            self.status[header['Node-path']] = header['Node-action'];
+#            print "ignore", header['Node-path'];
+#            return;
+#        dump(self.f, header, header_str, prop, bytes);
 
 #根据 sha1 过滤
 #class write_dumpfile():
@@ -195,15 +198,67 @@ class write_dumpfile():
 #        assert 0, 'not implemented yet'
 
 #模拟svn仓库
-#class write_dumpfile():
-#    def __init__(self, filename):
-#        self.f = io.open(filename, 'wb');
-#    def minimize_record(self, header, header_str, prop, bytes):
-#        pass
-#    def minimize_calc_filter(self):
-#        pass
-#    def minimize_write(self, header, header_str, prop, bytes):
-#        pass
+class svndir():
+    def __init__(self):
+        self.items = collections.defaultdict(svndir);
+        self.depends = {};
+    def get(self, path):
+        path = path.split('/', 1);
+        if(len(path)==1):
+            return self.items[path[0]];
+        return self.items[path[0]].get(path[1]);
+    def remove(self, path):
+        path = path.split('/', 1);
+        if(len(path)==1):
+            del self.items[path[0]];
+            return;
+        self.items[path[0]].remove(path[1]);
+    def copy_depends(self, src):
+        for i in src.depends:
+            self.depends[i]=1;
+        for i in src.items:
+            self.items[i].copy_depends(src.items[i]);        
+    def make_filter(self, keep):
+        for i in self.depends:
+            for j in parent_path(i):
+                keep[j] = 1;
+        for i in self.items:
+            self.items[i].make_filter(keep);
+class write_dumpfile():
+    def __init__(self, filename):
+        self.f = io.open(filename, 'wb');
+        self.root = svndir();
+    def minimize_record(self, header, header_str, prop, bytes):
+        if('Node-action' in header and header['Node-action']=='delete'):
+            path = header['Node-path'];
+            self.root.remove(path);
+            return;
+        if('Node-path' in header):
+            path = header['Node-path'];
+            dst = self.root.get(path)
+            dst.depends[path] = 1;
+            if('Node-copyfrom-path' in header):
+                path_from = header['Node-copyfrom-path'];
+                src = self.root.get(path_from)
+                dst.depends[path_from]=1;
+                dst.copy_depends(src);
+    def minimize_calc_filter(self):
+        self.keep = {};
+        self.root.make_filter(self.keep);
+        for i in self.keep:
+            print "keep", i;
+        self.status = collections.defaultdict(lambda:"");
+    def minimize_write(self, header, header_str, prop, bytes):
+        if('Node-path' in header and not(header['Node-path'] in self.keep)):
+            if(self.status[header['Node-path']]=='' and header['Node-action']=='delete'):
+                # 随目录copy而产生, 没有单独的 Node-action: add
+                #  不应过滤
+                dump(self.f, header, header_str, prop, bytes);
+                return;
+            self.status[header['Node-path']] = header['Node-action'];
+            print "ignore", header['Node-path'];
+            return;
+        dump(self.f, header, header_str, prop, bytes);
 
 def main():
     if(len(sys.argv)!=3):
@@ -215,7 +270,7 @@ def main():
     read_dumpfile(sys.argv[1]).parse(dst.minimize_record);
     dst.minimize_calc_filter();
     read_dumpfile(sys.argv[1]).parse(dst.minimize_write);
-    #raw_input();
+    raw_input();
 
 if __name__ == "__main__" :
     main();
