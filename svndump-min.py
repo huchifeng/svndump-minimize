@@ -102,6 +102,7 @@ class write_dumpfile():
             self.depends[path][path] = 1;
             if('Node-copyfrom-path' in p):
                 p1 = p['Node-copyfrom-path'];
+                self.depends[path][p1]=1;
                 for i in self.depends[p1]:
                     self.depends[path][i]=1;
     def minimize_calc_filter(self):
@@ -109,6 +110,9 @@ class write_dumpfile():
         for i in self.depends:
             for j in self.depends[i]:
                 self.keep[j] = 1;
+                dirs = j.split('/');
+                for k in range(0, len(dirs)):
+                    self.keep[str.join('/', dirs[0:k+1])] = 1;
         for i in self.keep:
             print "keep", i;
     def minimize_write(self, p, str, prop, bytes):
