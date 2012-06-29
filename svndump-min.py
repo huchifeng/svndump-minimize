@@ -5,7 +5,7 @@
 KEYWORDS: svndump minimize compress clean
 ABSTRACT: 
   remove all junk (or confidential ) files from the svndump file,
-    according to the latest status of the depository;
+    according to the HEAD version of the depository;
 
 以最终状态为准, 凡是与最终保留文件相关的历史文件都被保留, 否则被删除;
 EXAMPLE:
