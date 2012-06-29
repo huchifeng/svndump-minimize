@@ -14,7 +14,7 @@
     <RootNamespace>svndump-min</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>list a.dump</CommandLineArguments>
+    <CommandLineArguments>filter a.dump inc.txt</CommandLineArguments>
     <InterpreterPath />
     <InterpreterArguments>
     </InterpreterArguments>

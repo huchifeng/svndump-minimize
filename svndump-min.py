@@ -110,7 +110,7 @@ def dump(f, header, header_str, prop, bytes):
     # 试验产生的dump文件略有差别(换行符), 但 load 后 co 正常,内容相同
     f.write(header_str);
     f.write(prop);
-    f.write(bytes);
+    f.write(bytes());
     f.write('\n');
 
 def parent_path(j):
@@ -176,9 +176,10 @@ class svn_item():
                 continue;
             self.items[i].make_filter(keep);
 
-class minimizer():
-    def __init__(self):
+class calc():
+    def __init__(self, filename):
         self.root = svn_item();
+        self.f = io.open(filename, "wb");        
     def record(self, header, header_str, prop, bytes):
         if('Revision-number' in header):
             print >>sys.stderr, 'rev', header['Revision-number'] # show progress
@@ -196,45 +197,37 @@ class minimizer():
                 src = self.root.get_recursive(path_from)
                 dst.depends[path_from]=1;
                 dst.copy_depends(src);
-    def save_filter(self, filename):
+    def __del__(self):
         self.keep = {};
         self.root.make_filter(self.keep);
-        f2 = io.open(filename, "wb");
-        for i in self.keep:
+        for i in sorted(self.keep.keys()):
             print >> sys.stderr, "keep", i.decode('utf-8');
-            f2.write("/"+i+"\n");
-    def load_filter(self, filename):
+            self.f.write(i+"\n");
+class filter():
+    def __init__(self, filename):
         self.keep = {};
         for i in io.open(filename, "rb"):
-            self.keep[re.sub('^\s+|^/|\s+$', '', i)] = 1;
-        self.root = svn_item();
+            self.keep[re.sub('^\s+|^/|\s+$', '', i)] = 1
     def write(self, header, header_str, prop, bytes):
         if('Node-path' in header and not(header['Node-path'] in self.keep)):
             # 随目录copy而产生, 没有单独的 Node-action: add  不应过滤
             # 但有可能其复制来源已经被忽略, 则导致 svnadmin load 出错;
             # 因此过滤之后仍调用 recrod 模拟, 判断文件是否还在
-            if(self.root.exists(header['Node-path'])):
-                #print >> sys.stderr, "should-del", header['Node-path'].decode('utf-8');
-                dump(sys.stdout, header, header_str, prop, bytes);
-                self.record(header, header_str, prop, bytes);
-                #return;
+            #if(self.calc.root.exists(header['Node-path'])):
+            #    #print >> sys.stderr, "should-del", header['Node-path'].decode('utf-8');
+            #    dump(sys.stdout, header, header_str, prop, bytes);
+            #    #return;
             print >> sys.stderr, "ignore", header['Node-path'].decode('utf-8');
             return;
         dump(sys.stdout, header, header_str, prop, bytes);
-        self.record(header, header_str, prop, bytes);
 
 def main():
     if(len(sys.argv) in [2,3] and sys.argv[1]=='list'):
         read_dumpfile(sys.stdin if len(sys.argv)==2 else sys.argv[2]).parse(print_info);
     elif(len(sys.argv)==4 and sys.argv[1]=='calc'):
-        dst = minimizer();
-        read_dumpfile(sys.argv[2]).parse(dst.record);
-        dst.save_filter(sys.argv[3]);
+        read_dumpfile(sys.argv[2]).parse(calc(sys.argv[3]).record);
     elif(len(sys.argv)==4 and sys.argv[1]=='filter'):
-        dst = minimizer();
-        dst.load_filter(sys.argv[3]);
-        #dst.f = io.open(sys.argv[4], "wb");
-        read_dumpfile(sys.argv[2]).parse(dst.write);
+        read_dumpfile(sys.argv[2]).parse(filter(sys.argv[3]).write);
     else:
         print >> sys.stderr, "USAGE: python -u svndump-min.py list < from.dump"
         print >> sys.stderr, "USAGE: svndump-min.py list from.dump"
