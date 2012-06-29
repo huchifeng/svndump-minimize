@@ -14,10 +14,9 @@
     <RootNamespace>svndump-min</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>filter a.dump inc.txt</CommandLineArguments>
+    <CommandLineArguments>filter a.dump inc.txt nul</CommandLineArguments>
     <InterpreterPath />
-    <InterpreterArguments>
-    </InterpreterArguments>
+    <InterpreterArguments>-u</InterpreterArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
