@@ -8,13 +8,13 @@
     <StartupFile>svndump-min.py</StartupFile>
     <SearchPath>
     </SearchPath>
-    <WorkingDirectory>C:\huchifeng.tmp\svn-test\</WorkingDirectory>
+    <WorkingDirectory>C:\huchifeng.tmp\isc</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>svndump-min</Name>
     <RootNamespace>svndump-min</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>test.dump tt.dump</CommandLineArguments>
+    <CommandLineArguments>list a.dump</CommandLineArguments>
     <InterpreterPath />
     <InterpreterArguments>
     </InterpreterArguments>
