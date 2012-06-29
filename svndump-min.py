@@ -116,7 +116,8 @@ class svn_db():
         self.current_rev = 0;
     def do_add_change_replace(self, path):
         if(path not in self.items):
-            self.items[path] = svn_item({'files':{}, 'copy_from':None, 'del_at':None, 'keep':False});
+            # 可能有多次copy动作指向一个地方,全部保留
+            self.items[path] = svn_item({'files':{}, 'copy_from':{}, 'del_at':None, 'keep':False});
         self.items[path].del_at = None;
         parent_dir = string.join(path.split('/')[:-1], '/')
         assert path.startswith(parent_dir);
@@ -126,7 +127,7 @@ class svn_db():
     def do_copy_from(self, path, path_from, from_rev):
         assert path_from in self.items;
         self.do_add_change_replace(path);
-        self.items[path].copy_from = path_from;
+        self.items[path].copy_from[path_from] = 1;
         for i in self.items[path_from].files.copy():
             assert i.startswith(path_from);
             if(self.items[i].del_at != None and self.items[i].del_at < from_rev):
@@ -154,8 +155,8 @@ class svn_db():
         parent_dir = string.join(path.split('/')[:-1], '/')
         if(parent_dir != ''):
             self.keep(parent_dir);
-        if(self.items[path].copy_from !=None):
-            self.keep(self.items[path].copy_from);
+        for i in self.items[path].copy_from:
+            self.keep(i);
     def calc_keep(self):
         for i in self.items:
             if(self.items[i].del_at == None):
@@ -192,7 +193,7 @@ class filter():
         self.svn2 = svn_db();
         self.output = io.open(output,"wb") if isinstance(output, str) else output
     def write(self, header, header_str, prop, bytes):
-        if('Node-path' in header and self.items[header['Node-path'].decode('utf-8')]['keep']==False):
+        if('Node-path' in header and not self.items[header['Node-path'].decode('utf-8')]['keep']):
             # 随目录copy而产生, 没有单独的 Node-action: add  不应过滤
             # 但有可能其复制来源已经被忽略, 则导致 svnadmin load 出错;
             # 因此过滤之后仍调用 recrod 模拟, 判断文件是否还在
